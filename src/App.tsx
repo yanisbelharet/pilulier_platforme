@@ -36,14 +36,6 @@ export default function App() {
     const unsub = onSnapshot(doc(db, "config", "main"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        const mergedProducts = [...defaultProducts];
-        if (data.products && Array.isArray(data.products)) {
-          for (const p of data.products) {
-            if (!mergedProducts.find(mp => mp.id === p.id)) {
-              mergedProducts.push(p);
-            }
-          }
-        }
         setConfig({ 
           productPrice: 2000, 
           productOldPrice: 3500, 
@@ -54,7 +46,7 @@ export default function App() {
           timerEnabled: true,
           timerHours: 24,
           ...data,
-          products: mergedProducts,
+          products: defaultProducts,
         } as any);
       } else {
         setConfig({
