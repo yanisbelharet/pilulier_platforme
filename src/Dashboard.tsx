@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [googleUser, setGoogleUser] = useState<User | null>(null);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [googleNeedsReauth, setGoogleNeedsReauth] = useState(false);
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [sheetMessage, setSheetMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [customSheetInput, setCustomSheetInput] = useState('');
@@ -228,10 +229,12 @@ export default function Dashboard() {
   useEffect(() => {
     const unsubscribe = initAuth((user, token) => {
       setGoogleUser(user);
-      setGoogleToken(token);
+      setGoogleToken(token || null);
+      setGoogleNeedsReauth(!token);
     }, () => {
       setGoogleUser(null);
       setGoogleToken(null);
+      setGoogleNeedsReauth(false);
     });
 
     fetchAuth('/api/config')
@@ -1091,6 +1094,27 @@ export default function Dashboard() {
                         </svg>
                         Se connecter avec Google
                       </button>
+                    ) : googleNeedsReauth ? (
+                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center font-bold">
+                              {googleUser.displayName?.charAt(0) || 'U'}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800">{googleUser.displayName}</p>
+                              <p className="text-sm text-slate-500">{googleUser.email}</p>
+                              <p className="text-xs text-amber-600 font-medium mt-1">Session expirée - Reconnectez-vous pour Sheets</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={handleGoogleSignIn}
+                            className="px-4 py-2 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-colors"
+                          >
+                            Reconnecter
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-6">
                         <div className="flex items-center justify-between mb-6">
