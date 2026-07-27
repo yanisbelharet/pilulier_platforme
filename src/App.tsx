@@ -91,10 +91,17 @@ export default function App() {
     }
   }, []);
 
+  const formatPhoneE164 = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('0')) return '+213' + digits.slice(1);
+    if (digits.startsWith('213')) return '+' + digits;
+    return '+213' + digits;
+  };
+
   const handlePurchase = (price: number, product: any, formData?: any) => {
     if (config?.fbPixelId && window.fbq) window.fbq('track', 'Purchase', { value: price, currency: 'DZD' });
     if (config?.tiktokPixelId && window.ttq) {
-      if (formData?.phone) window.ttq.identify({ phone_number: formData.phone });
+      if (formData?.phone) window.ttq.identify({ phone_number: formatPhoneE164(formData.phone) });
       window.ttq.track('CompletePayment', { contents: [{ content_id: product.id, content_type: 'product', content_name: product.name }], value: price, currency: 'DZD' });
     }
   };
