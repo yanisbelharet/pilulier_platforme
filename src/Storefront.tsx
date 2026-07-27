@@ -65,9 +65,9 @@ export default function Storefront({ config }: { config: any }) {
               className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all group"
             >
               <div className="relative h-64 overflow-hidden bg-slate-100">
-                {config.promoActive && (
+                  {config.promoActive && (
                   <div className="absolute top-4 right-4 bg-rose-500 text-white text-xs font-black px-3 py-1.5 rounded-full z-10 shadow-lg shadow-rose-200">
-                    تخفيض خاص
+                    {config.promoText || 'تخفيض خاص'}
                   </div>
                 )}
                 <img 

@@ -39,26 +39,8 @@ export default function Dashboard() {
 
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
-  const [landingPages, setLandingPages] = useState<any[]>(() => {
-    const saved = localStorage.getItem('landingPages');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return [
-      {
-        id: 'lp_v3',
-        name: 'Page Active (V3)',
-        type: 'v3',
-        productId: 'med-alarm-v3',
-        customPath: '/product-v3/med-alarm-v3',
-        isActive: true,
-      }
-    ];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('landingPages', JSON.stringify(landingPages));
-  }, [landingPages]);
+  const [landingPages, setLandingPages] = useState<any[]>([]);
+  const [promoText, setPromoText] = useState('تخفيض خاص');
 
   const handleGoogleSignIn = async () => {
     try {
@@ -241,6 +223,8 @@ export default function Dashboard() {
       .then(res => res.json())
       .then(data => {
         setConfig(data);
+        if (data.landingPages) setLandingPages(data.landingPages);
+        if (data.promoText) setPromoText(data.promoText);
       });
       
     const fetchOrders = () => {
@@ -307,10 +291,11 @@ export default function Dashboard() {
     setSaveMessage('');
     
     try {
+      const saveConfig = { ...config, landingPages, promoText };
       const res = await fetchAuth('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify(saveConfig)
       });
       
       if (res.ok) {
@@ -730,20 +715,32 @@ export default function Dashboard() {
                         </div>
 
                         <div className="mt-6 pt-6 border-t border-slate-100">
-                          <div className="flex items-center gap-6">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Texte de la promotion</label>
                               <input 
-                                type="checkbox"
-                                checked={lp.isActive}
-                                onChange={(e) => {
-                                  const newLP = [...landingPages];
-                                  newLP[idx] = { ...lp, isActive: e.target.checked };
-                                  setLandingPages(newLP);
-                                }}
-                                className="w-5 h-5"
+                                type="text"
+                                value={promoText}
+                                onChange={(e) => setPromoText(e.target.value)}
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                                placeholder="تخفيض خاص"
                               />
-                              <span className="font-bold text-slate-700">Page active</span>
-                            </label>
+                            </div>
+                            <div className="flex items-end">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                  type="checkbox"
+                                  checked={lp.isActive}
+                                  onChange={(e) => {
+                                    const newLP = [...landingPages];
+                                    newLP[idx] = { ...lp, isActive: e.target.checked };
+                                    setLandingPages(newLP);
+                                  }}
+                                  className="w-5 h-5"
+                                />
+                                <span className="font-bold text-slate-700">Page active</span>
+                              </label>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -751,7 +748,7 @@ export default function Dashboard() {
                   })}
                 </div>
 
-                <div className="flex justify-end sticky bottom-4">
+                <div className="flex justify-end gap-4 sticky bottom-4">
                   <button 
                     onClick={() => {
                       const newLP = {
@@ -768,9 +765,14 @@ export default function Dashboard() {
                   >
                     + Ajouter une page
                   </button>
-                </div>
-                <div className="mt-4 px-6 py-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 font-medium text-sm">
-                  Les modifications des pages de vente sont sauvegardées localement. Les URLs doivent correspondre aux routes définies dans App.tsx.
+                  <button 
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all disabled:opacity-70"
+                  >
+                    <Save size={20} />
+                    <span>{saving ? 'Enregistrement...' : 'Sauvegarder'}</span>
+                  </button>
                 </div>
               </motion.div>
             )}
