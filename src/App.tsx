@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import LandingPage from './LandingPage';
-import LandingPageV2 from './LandingPageV2';
 import LandingPageV3 from './LandingPageV3';
 import Dashboard from './Dashboard';
-import Storefront from './Storefront';
 import { db } from './firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
@@ -22,15 +19,6 @@ export default function App() {
   } | null>(null);
 
   const defaultProducts = [
-    {
-      id: "med-alarm",
-      name: "منبه الدواء الذكي",
-      description: "تخلص من القلق ونظم أدويتك بكل سهولة! حافظة ذكية مزودة بـ 4 منبهات قوية لتذكيرك في الوقت المحدد.",
-      price: 2000,
-      oldPrice: 2900,
-      imageUrl: "https://cdn.youcan.shop/stores/defae844a0bbda3e5af90b6e7c10442b/others/7UDcKpzGFzchMMbeTwAB3UJZsYDCHWRiLTfg2A3T.jpg",
-      isVisible: true
-    },
     {
       id: "med-alarm-v3",
       name: "منبه الدواء الذكي (النسخة 3)",
@@ -86,7 +74,6 @@ export default function App() {
 
   useEffect(() => {
     if (config) {
-      // Inject Facebook Pixel
       if (config.fbPixelId) {
         ;(function(f,b,e,v,n,t,s)
         {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -102,7 +89,6 @@ export default function App() {
         window.fbq('track', 'PageView');
       }
 
-      // Inject TikTok Pixel
       if (config.tiktokPixelId) {
         ;(function (w, d, t) {
           w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
@@ -116,7 +102,6 @@ export default function App() {
 
   
   useEffect(() => {
-    // track visit once per session
     if (!sessionStorage.getItem('visitTracked')) {
       fetch('/api/track-visit', { method: 'POST' }).catch(() => {});
       sessionStorage.setItem('visitTracked', 'true');
@@ -150,12 +135,10 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Storefront config={config} />} />
-        <Route path="/product/:id" element={<LandingPage config={config} onPurchase={(price, product, formData) => handlePurchase(price, product, formData)} />} />
-        <Route path="/product-v2/:id" element={<LandingPageV2 config={config} onPurchase={(price, product, formData) => handlePurchase(price, product, formData)} />} />
+        <Route path="/" element={<Navigate to="/product-v3/med-alarm-v3" />} />
         <Route path="/product-v3/:id" element={<LandingPageV3 config={config} onPurchase={(price, product, formData) => handlePurchase(price, product, formData)} />} />
         <Route path="/admin" element={<Dashboard />} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/product-v3/med-alarm-v3" />} />
       </Routes>
     </Router>
   );
