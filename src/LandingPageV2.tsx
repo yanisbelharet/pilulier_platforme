@@ -6,7 +6,7 @@ import { CheckoutForm, Testimonials } from './LandingPage';
 
 export default function LandingPageV2({ config, onPurchase }: { config: any, onPurchase: (p: number, product: any, formData?: any) => void }) {
   const { id } = useParams();
-  const product = config.products ? config.products.find((p: any) => p.id === id) : null;
+  const product = config.products ? config.products.find((p: any) => p.id === id || p.customPath?.endsWith(id)) : null;
   
   if (!product) return <Navigate to="/" />;
 

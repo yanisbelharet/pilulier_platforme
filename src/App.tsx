@@ -39,7 +39,7 @@ export default function App() {
       oldPrice: 2900,
       imageUrl: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/UcuCAbqBuLvphQwpgudEKiSTjNT7tkDWqG2nmVoF.webp",
       isVisible: true,
-      customPath: "/product-v3/med-alarm"
+      customPath: "/product-v3/med-alarm-v3"
     }
   ];
 
