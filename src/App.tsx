@@ -27,13 +27,24 @@ export default function App() {
       const base = { productPrice: 2000, productOldPrice: 3500, promoActive: true, visits: 0, fbPixelId: '', tiktokPixelId: '', timerEnabled: true, timerHours: 24, products: defaultProducts, landingPages: [], promoText: 'تخفيض خاص' };
       if (docSnap.exists()) {
         const data = docSnap.data();
-        const products = data.products && data.products.length > 0 ? data.products : defaultProducts;
-        const finalProducts = products.map(p => ({
+        let finalProducts = [];
+        if (data.products && data.products.length > 0) {
+          finalProducts = [...data.products];
+          for (const dp of defaultProducts) {
+            if (!finalProducts.find(p => p.id === dp.id)) {
+              finalProducts.push(dp);
+            }
+          }
+        } else {
+          finalProducts = [...defaultProducts];
+        }
+        finalProducts = finalProducts.map(p => ({
           ...p,
           price: p.price || base.productPrice,
           oldPrice: p.oldPrice || base.productOldPrice,
         }));
-        setConfig({ ...base, ...data, products: finalProducts });
+        const landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [{ id: 'lp_v3', name: 'Page Active (V3)', type: 'v3', productId: 'med-alarm-v3', customPath: '/product-v3/med-alarm-v3', isActive: true }];
+        setConfig({ ...base, ...data, products: finalProducts, landingPages });
       } else {
         setConfig(base);
       }
