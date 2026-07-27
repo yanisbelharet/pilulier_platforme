@@ -21,7 +21,7 @@ export default function handler(req, res) {
     // Set cookie
     res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Strict${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, token });
   } else {
     return res.status(401).json({ success: false, error: "Invalid password" });
   }
