@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPageV3 from './LandingPageV3';
 import Dashboard from './Dashboard';
+import Storefront from './Storefront';
 import { db } from './firebase';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function App() {
   const [config, setConfig] = useState<{
@@ -135,10 +136,10 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Navigate to="/product-v3/med-alarm-v3" />} />
+        <Route path="/" element={<Storefront config={config} />} />
         <Route path="/product-v3/:id" element={<LandingPageV3 config={config} onPurchase={(price, product, formData) => handlePurchase(price, product, formData)} />} />
         <Route path="/admin" element={<Dashboard />} />
-        <Route path="*" element={<Navigate to="/product-v3/med-alarm-v3" />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
