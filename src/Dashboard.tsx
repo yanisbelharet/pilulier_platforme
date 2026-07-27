@@ -51,9 +51,14 @@ export default function Dashboard() {
         setGoogleToken(result.accessToken);
         setSheetMessage({ type: 'success', text: 'Connecté à Google avec succès.' });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setSheetMessage({ type: 'error', text: 'Échec de la connexion Google.' });
+      const msg = err?.code === 'auth/popup-blocked' 
+        ? 'Popup bloquée par le navigateur. Autorisez les popups pour ce site.'
+        : err?.code === 'auth/unauthorized-domain'
+        ? 'Domaine non autorisé. Ajoutez ce domaine dans Firebase Console > Authentication > Authorized domains.'
+        : 'Échec de la connexion Google. Vérifiez la console pour plus de détails.';
+      setSheetMessage({ type: 'error', text: msg });
     }
   };
 

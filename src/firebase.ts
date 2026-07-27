@@ -30,15 +30,10 @@ export const initAuth = (
     if (user) {
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        cachedAccessToken = null;
-      localStorage.removeItem("googleAccessToken");
-        localStorage.removeItem("googleAccessToken");
-  localStorage.removeItem("googleAccessToken");
-        if (onAuthFailure) onAuthFailure();
       }
     } else {
       cachedAccessToken = null;
+      localStorage.removeItem("googleAccessToken");
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -71,4 +66,5 @@ export const getAccessToken = async (): Promise<string | null> => {
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
+  localStorage.removeItem("googleAccessToken");
 };
