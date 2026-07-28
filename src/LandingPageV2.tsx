@@ -6,7 +6,7 @@ import { CheckoutForm, Testimonials } from './LandingPage';
 
 export default function LandingPageV2({ config, onPurchase }: { config: any, onPurchase: (p: number, product: any, formData?: any) => void }) {
   const { id } = useParams();
-  const product = config.products ? config.products.find((p: any) => p.id === id || p.customPath?.endsWith(id)) : null;
+  const product = config.products ? config.products.find((p: any) => p.id === id) : null;
   
   if (!product) return <Navigate to="/" />;
 
@@ -56,7 +56,7 @@ export default function LandingPageV2({ config, onPurchase }: { config: any, onP
 
         <section id="checkout" className="py-8 bg-white px-4 border-t border-slate-100">
           <div className="max-w-xl mx-auto">
-            <CheckoutForm product={product} promoActive={config.promoActive} onPurchase={onPurchase} />
+            <CheckoutForm product={product} promoActive={config.promoActive} promoText={config.promoText} onPurchase={onPurchase} />
           </div>
         </section>
 

@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   projectId: "gen-lang-client-0983661862",
@@ -14,7 +13,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, "ai-studio-e9c2d681-7821-46c6-83a5-06aac423e67a");
-export const storage = getStorage(app);
 
 export const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
@@ -30,10 +28,17 @@ export const initAuth = (
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken || '');
+      if (cachedAccessToken) {
+        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
+      } else if (!isSigningIn) {
+        cachedAccessToken = null;
+      localStorage.removeItem("googleAccessToken");
+        localStorage.removeItem("googleAccessToken");
+  localStorage.removeItem("googleAccessToken");
+        if (onAuthFailure) onAuthFailure();
+      }
     } else {
       cachedAccessToken = null;
-      localStorage.removeItem("googleAccessToken");
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -66,5 +71,4 @@ export const getAccessToken = async (): Promise<string | null> => {
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
-  localStorage.removeItem("googleAccessToken");
 };

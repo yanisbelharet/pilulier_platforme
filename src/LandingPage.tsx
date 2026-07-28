@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, CheckCircle2, ShieldCheck, Clock, Plane, Smartphone, Check, Star, Shield, AlertCircle, Timer } from 'lucide-react';
+import { ShoppingCart, CheckCircle2, ShieldCheck, Clock, Plane, Smartphone, Check, Star, Shield, AlertCircle, Timer, User, Phone, ChevronDown } from 'lucide-react';
 import { motion } from 'motion/react';
 import { WILAYAS, DELIVERY_PRICES } from './data';
 import { getCommunesByWilayaId } from 'algeria-locations';
-import { useParams, Navigate } from 'react-router-dom';
-
-const BASE_URL = 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 
 // --- Components ---
 
@@ -75,11 +73,9 @@ const Hero = ({ product, promoActive, timerEnabled, timerHours, onInitiateChecko
           className="relative mt-8 mb-8"
         >
           <img 
-            src={imageUrl || BASE_URL + 'jenr3Djsu1kNTjdGpKFouWi3RK3rme5ukYxSVakb.webp'} 
+            src={imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5e4708705?q=80&w=800&auto=format&fit=crop'} 
             alt={name} 
-            width="800"
-            height="936"
-            className="w-full h-auto rounded-[40px] shadow-2xl border border-slate-100"
+            className="w-full h-auto rounded-[40px] shadow-2xl border border-slate-100 object-cover"
           />
           {/* Badge */}
           {promoActive && <div className="absolute -bottom-4 -left-4 bg-rose-500 text-white w-24 h-24 rounded-full flex flex-col items-center justify-center font-black shadow-lg shadow-rose-200 transform -rotate-12 border-4 border-white">
@@ -191,16 +187,14 @@ const Features = () => {
   );
 };
 
-const defaultTestimonialImages = [
-  { url: BASE_URL + 'XaewCRs0RF7hAjCjBoDWHoHwEDF1IvE83wUv3qn8.webp' },
-  { url: BASE_URL + 'Fa0fi22jsvzCQ9zSFo6Mv20Og2YJwhJSga3RsbiJ.webp' },
-  { url: BASE_URL + 'J1p0AvhxKaKnDYyBumw6zwOo5yKbEIl91fWhWBsF.webp' },
-  { url: BASE_URL + 'vL1zj2NHy12mUkiJjZBsTTIIBM8LE5YvPqdFEZMj.webp' },
-  { url: BASE_URL + 'd6WcuiC5ne67a26tdAQPzK6jSaIl7z1nWuwHrcWF.webp' },
-];
-
-export const Testimonials = ({ images }: { images?: { url: string; w?: number; h?: number }[] }) => {
-  const items = (images && images.length > 0) ? images : defaultTestimonialImages;
+export const Testimonials = () => {
+  const reviews = [
+    "/review_1.webp",
+    "/review_2.webp",
+    "/review_3.webp",
+    "/review_4.webp",
+    "/review_5.webp"
+  ];
 
   return (
     <section className="py-16 bg-slate-50 px-4 border-y border-slate-100">
@@ -213,9 +207,9 @@ export const Testimonials = ({ images }: { images?: { url: string; w?: number; h
         </div>
         
         <div className="space-y-6">
-          {items.map((img: any, i: number) => (
+          {reviews.map((imgSrc, i) => (
             <div key={i} className="rounded-3xl overflow-hidden shadow-md border border-slate-100">
-              <img src={img.url} alt={`رأي زبون ${i + 1}`} width={img.w || 1440} height={img.h || 1413} className="w-full h-auto" />
+              <img src={imgSrc} alt={`رأي زبون ${i + 1}`} className="w-full h-auto object-cover" />
             </div>
           ))}
         </div>
@@ -224,7 +218,8 @@ export const Testimonials = ({ images }: { images?: { url: string; w?: number; h
   );
 };
 
-export const CheckoutForm = ({ product, promoActive, onPurchase }: { product: any, promoActive?: boolean, onPurchase: (p: number, product: any, formData: any) => void }) => {
+export const CheckoutForm = ({ product, promoActive, promoText, onPurchase }: { product: any, promoActive?: boolean, promoText?: string, onPurchase: (p: number, product: any, formData: any) => void }) => {
+  const navigate = useNavigate();
   const { price: productPrice, oldPrice: productOldPrice } = product;
   const [formData, setFormData] = useState<{
     name: string;
@@ -266,8 +261,17 @@ export const CheckoutForm = ({ product, promoActive, onPurchase }: { product: an
       });
       
       if (response.ok) {
-        setSuccess(true);
         onPurchase(productPrice, product, formData);
+        navigate('/thank-you', {
+          state: {
+            orderDetails: {
+              name: formData.name,
+              phone: formData.phone,
+              productName: product.name,
+              totalPrice: totalPrice
+            }
+          }
+        });
       } else {
         alert('حدث خطأ أثناء إرسال الطلب، يرجى المحاولة مرة أخرى.');
       }
@@ -279,105 +283,82 @@ export const CheckoutForm = ({ product, promoActive, onPurchase }: { product: an
     }
   };
 
-  if (success) {
-    return (
-      <div className="bg-[#FEFEFE] border-4 border-double border-[#F5A623] rounded-[20px] p-8 text-center shadow-sm">
-        <div className="w-16 h-16 bg-[#417505] text-white rounded-full flex items-center justify-center mx-auto mb-4">
-          <Check size={32} />
-        </div>
-        <h3 className="text-2xl font-bold text-slate-800 mb-2">تم تسجيل طلبك بنجاح!</h3>
-        <p className="text-slate-600 font-medium">
-          شكراً لثقتكم بنا.<br/>
-          سنتصل بك في غضون 24 ساعة لتأكيد طلبيتك قبل الشحن.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="relative bg-[#FEFEFE] rounded-[20px] p-6 shadow-sm border-[4px] border-double border-[#F5A623]">
+    <form onSubmit={handleSubmit} className="relative bg-[#FEFEFE] rounded-[20px] p-4 sm:p-6 shadow-sm border-[4px] border-double border-[#F5A623]">
       {promoActive && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-rose-500 text-white px-6 py-1.5 rounded-full text-sm font-black shadow-md whitespace-nowrap animate-bounce flex items-center gap-2">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
           </span>
-          عرض ترويجي محدود!
+          {promoText || 'عرض ترويجي محدود!'}
         </div>
       )}
       
-      <div className="mb-8 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl p-6 border border-emerald-100 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -ml-16 -mb-16"></div>
-        
-        <div className="relative z-10 text-center">
-          <h3 className="text-lg font-bold text-emerald-800 mb-3 uppercase tracking-wider">سعر المنتج</h3>
-          <div className="flex items-center justify-center gap-4">
-            {promoActive && productOldPrice && productOldPrice > productPrice && (
-              <span className="text-2xl font-bold text-slate-400 line-through decoration-slate-300 decoration-2">{productOldPrice} د.ج</span>
-            )}
-            <span className="text-5xl font-black text-[#417505] drop-shadow-sm">{productPrice} د.ج</span>
-          </div>
+      <div className="mb-4 bg-emerald-50/50 rounded-lg p-3 border border-emerald-100 shadow-sm flex items-center justify-between">
+        <span className="text-sm font-bold text-slate-600">السعر الإجمالي:</span>
+        <div className="flex items-center gap-3">
           {promoActive && productOldPrice && productOldPrice > productPrice && (
-            <div className="mt-4">
-              <span className="inline-block bg-rose-100 text-rose-700 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
-                وفرت {productOldPrice - productPrice} د.ج! 🎉
-              </span>
-            </div>
+            <span className="text-sm font-bold text-slate-400 line-through decoration-slate-300 decoration-2">{productOldPrice} د.ج</span>
           )}
+          <span className="text-2xl font-black text-[#417505]">{productPrice} د.ج</span>
         </div>
       </div>
       
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div className="relative">
             <input 
               type="text" 
               required
-              placeholder="الإسم أو اللقب" 
-              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg px-4 py-3 focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all text-sm font-medium shadow-sm hover:border-[#94a3b8]"
+              placeholder="الاسم الكامل" 
+              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg pr-10 pl-3 py-2.5 focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all text-sm font-medium shadow-sm hover:border-[#94a3b8]"
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
             />
+            <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
           </div>
-          <div>
+          <div className="relative">
             <input 
               type="tel" 
               required
-              dir="ltr"
+              dir="rtl"
               placeholder="رقم الهاتف" 
-              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg px-4 py-3 text-right focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all text-sm font-medium shadow-sm hover:border-[#94a3b8]"
+              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg pr-10 pl-3 py-2.5 text-right focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all text-sm font-medium shadow-sm hover:border-[#94a3b8]"
               value={formData.phone}
               onChange={(e) => setFormData({...formData, phone: e.target.value})}
             />
+            <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-600" size={18} />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div className="relative">
             <select 
               required
-              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg px-4 py-3 focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all appearance-none text-sm font-medium shadow-sm hover:border-[#94a3b8]"
+              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg pr-3 pl-10 py-2.5 focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all appearance-none text-sm font-medium shadow-sm hover:border-[#94a3b8]"
               value={formData.wilaya}
               onChange={(e) => setFormData({...formData, wilaya: e.target.value, commune: ''})}
             >
-              <option value="" disabled>الولاية</option>
+              <option value="" disabled>اختر الولاية</option>
               {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
             </select>
+            <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
           </div>
-          <div>
+          <div className="relative">
             <select 
               required
-              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg px-4 py-3 focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all appearance-none text-sm font-medium shadow-sm hover:border-[#94a3b8] disabled:opacity-50 disabled:bg-slate-100"
+              className="w-full bg-[#f8fafc] border border-[#cbd5e1] text-[#1e293b] rounded-lg pr-3 pl-10 py-2.5 focus:border-[#417505] focus:ring-1 focus:ring-[#417505] outline-none transition-all appearance-none text-sm font-medium shadow-sm hover:border-[#94a3b8] disabled:opacity-50 disabled:bg-slate-100"
               value={formData.commune}
               onChange={(e) => setFormData({...formData, commune: e.target.value})}
               disabled={!formData.wilaya}
             >
-              <option value="" disabled>البلدية</option>
+              <option value="" disabled>إختر البلدية</option>
               {formData.wilaya && getCommunesByWilayaId(parseInt(formData.wilaya, 10)).map(c => (
                 <option key={c.id} value={c.name_ar}>{c.name_ar}</option>
               ))}
             </select>
+            <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
           </div>
         </div>
         
@@ -447,7 +428,7 @@ export const CheckoutForm = ({ product, promoActive, onPurchase }: { product: an
 
 export default function LandingPage({ config, onPurchase }: { config: any, onPurchase: (p: number, product: any, formData?: any) => void }) {
   const { id } = useParams();
-  const product = config.products ? config.products.find((p: any) => p.id === id || p.customPath?.endsWith(id)) : null;
+  const product = config.products ? config.products.find((p: any) => p.id === id) : null;
   
   if (!product) return <Navigate to="/" />;
 
@@ -526,7 +507,7 @@ export default function LandingPage({ config, onPurchase }: { config: any, onPur
 
         <section id="checkout" className="py-16 bg-white px-4 border-t border-slate-100">
           <div className="max-w-xl mx-auto">
-            <CheckoutForm product={product} promoActive={config.promoActive} onPurchase={onPurchase} />
+            <CheckoutForm product={product} promoActive={config.promoActive} promoText={config.promoText} onPurchase={onPurchase} />
           </div>
         </section>
 

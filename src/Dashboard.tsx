@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Settings, Save, LogOut, TrendingUp, ShoppingCart, ShoppingBag, Tag, Eye, Package, DollarSign, LayoutDashboard, BarChart3, Clock, Phone, CheckCircle, RefreshCw, MapPin, FileText } from 'lucide-react';
+import { Lock, Settings, Save, LogOut, TrendingUp, Users, ShoppingCart, ShoppingBag, Tag, Eye, Package, DollarSign, LayoutDashboard, BarChart3, Bell, Clock, Plane, Phone, CheckCircle, XCircle, Search, RefreshCw, AlertCircle, MapPin } from 'lucide-react';
 import * as import_data from './data';
 import { motion } from 'motion/react';
 import { initAuth, googleSignIn, getAccessToken, logout } from './firebase';
-import ImageUploader from './ImageUploader';
 import { User } from 'firebase/auth';
 
 export default function Dashboard() {
@@ -16,6 +15,7 @@ export default function Dashboard() {
     productPrice: 2000,
     productOldPrice: 3500,
     promoActive: true,
+    promoText: 'عرض ترويجي محدود!',
     visits: 0,
     fbPixelId: '',
     tiktokPixelId: '',
@@ -27,22 +27,24 @@ export default function Dashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [googleUser, setGoogleUser] = useState<User | null>(null);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
-  const [googleNeedsReauth, setGoogleNeedsReauth] = useState(false);
   const [syncingSheets, setSyncingSheets] = useState(false);
+  const [syncDateFilter, setSyncDateFilter] = useState('all');
   const [sheetMessage, setSheetMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [customSheetInput, setCustomSheetInput] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [dateFilter, setDateFilter] = useState('all');
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [dhdFilter, setDhdFilter] = useState('pending');
+  const [dhdSearch, setDhdSearch] = useState('');
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
 
   const [saving, setSaving] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
   const [saveMessage, setSaveMessage] = useState('');
 
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-
-  const [landingPages, setLandingPages] = useState<any[]>([]);
-  const [promoText, setPromoText] = useState('تخفيض خاص');
-
+  
   const handleGoogleSignIn = async () => {
     try {
       const result = await googleSignIn();
@@ -51,16 +53,12 @@ export default function Dashboard() {
         setGoogleToken(result.accessToken);
         setSheetMessage({ type: 'success', text: 'Connecté à Google avec succès.' });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      const msg = err?.code === 'auth/popup-blocked' 
-        ? 'Popup bloquée par le navigateur. Autorisez les popups pour ce site.'
-        : err?.code === 'auth/unauthorized-domain'
-        ? 'Domaine non autorisé. Ajoutez ce domaine dans Firebase Console > Authentication > Authorized domains.'
-        : 'Échec de la connexion Google. Vérifiez la console pour plus de détails.';
-      setSheetMessage({ type: 'error', text: msg });
+      setSheetMessage({ type: 'error', text: 'Échec de la connexion Google.' });
     }
   };
+
   
   const saveCustomSheetId = async () => {
     let extractedId = customSheetInput.trim();
@@ -82,7 +80,8 @@ export default function Dashboard() {
     }
   };
 
-  const handleSyncToSheets = async () => {
+  const handleSyncToSheets = async (isAutoSync: boolean | React.MouseEvent = false) => {
+    if (typeof isAutoSync !== 'boolean') isAutoSync = false;
     if (!googleToken) {
       setSheetMessage({ type: 'error', text: 'Veuillez vous connecter à Google.' });
       return;
@@ -130,12 +129,23 @@ export default function Dashboard() {
         });
       }
       
+      // Fetch existing IDs from Google Sheets to avoid duplicates
       let existingIds = [];
       let sheetName = 'Commandes';
       try {
+        // First get spreadsheet info to find the first sheet name if Commandes doesn't exist
         const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`, {
           headers: { 'Authorization': `Bearer ${googleToken}` }
         });
+        if (metaRes.status === 404) {
+          throw new Error("Le fichier Google Sheets n'existe plus ou est inaccessible. Veuillez lier un nouveau fichier.");
+        }
+        if (metaRes.status === 401) {
+          setGoogleToken(null);
+          setGoogleUser(null);
+          localStorage.removeItem("googleAccessToken");
+          throw new Error("Session Google expirée. Veuillez vous reconnecter.");
+        }
         if (metaRes.ok) {
            const metaData = await metaRes.json();
            if (metaData.sheets && metaData.sheets.length > 0) {
@@ -146,20 +156,42 @@ export default function Dashboard() {
            }
         }
       
-        const sheetDataRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:A`, {
+        const sheetDataRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A:A`, {
           headers: { 'Authorization': `Bearer ${googleToken}` }
         });
         if (sheetDataRes.ok) {
            const existingData = await sheetDataRes.json();
            if (existingData.values) {
-              existingIds = existingData.values.map(row => row[0]);
+              existingIds = existingData.values.map(row => String(row[0]));
            }
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (err.message.includes('Session Google') || err.message.includes('fichier Google Sheets')) {
+          throw err; // re-throw to the outer try/catch
+        }
         console.error("Error fetching existing sheets data:", err);
       }
 
-      const newOrders = orders.filter(o => !existingIds.includes(o.displayId || o.id));
+      // Filter for new orders (not yet in the sheet)
+      // Display ID or internal ID
+      let ordersToSync = orders;
+      if (!isAutoSync && syncDateFilter !== 'all') {
+         const now = new Date();
+         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+         const yesterday = new Date(today);
+         yesterday.setDate(yesterday.getDate() - 1);
+         const last7days = new Date(today);
+         last7days.setDate(last7days.getDate() - 7);
+         
+         ordersToSync = orders.filter(o => {
+            const d = new Date(o.createdAt);
+            if (syncDateFilter === 'today') return d >= today;
+            if (syncDateFilter === 'yesterday') return d >= yesterday && d < today;
+            if (syncDateFilter === '7days') return d >= last7days;
+            return true;
+         });
+      }
+      const newOrders = ordersToSync.filter(o => !existingIds.includes(String(o.displayId || o.id)));
       
       if (newOrders.length === 0) {
          setSheetMessage({ type: 'success', text: 'Toutes les commandes sont déjà synchronisées.' });
@@ -167,6 +199,7 @@ export default function Dashboard() {
          return;
       }
       
+      // Sort to append oldest first among the new ones
       const sortedNewOrders = [...newOrders].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
       const values = sortedNewOrders.map(o => [
@@ -181,7 +214,7 @@ export default function Dashboard() {
         o.price
       ]);
       
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=USER_ENTERED`, {
+      const appendRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A1:append?valueInputOption=USER_ENTERED`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${googleToken}`,
@@ -189,6 +222,17 @@ export default function Dashboard() {
         },
         body: JSON.stringify({ values: values })
       });
+      if (!appendRes.ok) {
+        const errorData = await appendRes.text();
+        console.error("Append failed:", errorData);
+        if (appendRes.status === 401) {
+          setGoogleToken(null);
+          setGoogleUser(null);
+          localStorage.removeItem("googleAccessToken");
+          throw new Error("Session Google expirée. Veuillez vous reconnecter.");
+        }
+        throw new Error('Erreur API Sheets: ' + appendRes.status);
+      }
       
       setSheetMessage({ type: 'success', text: 'Synchronisation réussie avec Google Sheets !' });
       
@@ -212,20 +256,17 @@ export default function Dashboard() {
   useEffect(() => {
     const unsubscribe = initAuth((user, token) => {
       setGoogleUser(user);
-      setGoogleToken(token || null);
-      setGoogleNeedsReauth(!token);
+      setGoogleToken(token);
     }, () => {
       setGoogleUser(null);
       setGoogleToken(null);
-      setGoogleNeedsReauth(false);
     });
 
+    // Check if we can fetch config to verify authentication
     fetchAuth('/api/config')
       .then(res => res.json())
       .then(data => {
         setConfig(data);
-        if (data.landingPages) setLandingPages(data.landingPages);
-        if (data.promoText) setPromoText(data.promoText);
       });
       
     const fetchOrders = () => {
@@ -247,10 +288,131 @@ export default function Dashboard() {
 
     if (isAuthenticated) {
       fetchOrders();
-      const interval = setInterval(fetchOrders, 2000);
+      const interval = setInterval(fetchOrders, 2000); // Poll every 2s
       return () => clearInterval(interval);
+    } else {
+      fetchOrders(); // Initial check
     }
   }, [isAuthenticated]);
+
+  // Auto-sync to sheets when orders length increases
+  useEffect(() => {
+    if (googleToken && config.spreadsheetId && orders.length > previousOrderCount) {
+      // Don't auto-sync on initial load if we just loaded orders, 
+      // but wait, if it's initial load, previousOrderCount is 0, it WILL sync. That's good to ensure consistency.
+      if (!syncingSheets) {
+        handleSyncToSheets(true);
+        setPreviousOrderCount(orders.length);
+      }
+    }
+  }, [orders.length, googleToken, config.spreadsheetId]);
+
+
+  const updateOrderStatus = async (id: string, status: string, additionalData: any = {}) => {
+    try {
+      setLoadingAction(id);
+      await fetch(`/api/orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, ...additionalData })
+      });
+      setOrders(orders.map(o => o.id === id ? { ...o, status, ...additionalData } : o));
+    } catch (e) {
+      console.error(e);
+      alert('Erreur lors de la mise à jour');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const pushToDHD = async (order: any) => {
+    try {
+      setLoadingAction('push_' + order.id);
+      const res = await fetch('/api/dhd/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          payload: {
+            Tracking: order.id,
+            Client: order.name,
+            MobileA: order.phone,
+            IDWilaya: parseInt(order.wilaya, 10),
+            Commune: order.commune,
+            WilayaName: order.wilaya,
+            Total: order.price,
+            Note: order.note || '',
+            TProduit: (() => {
+              const prod = config.products?.find((p: any) => p.id === order.productId);
+              if (prod?.isDhdStored && prod.dhdRef) {
+                return prod.dhdRef;
+              }
+              return order.productName || 'Produit';
+            })(),
+            TypeColis: (() => {
+              const prod = config.products?.find((p: any) => p.id === order.productId);
+              return prod?.isDhdStored ? 1 : 0;
+            })(),
+            TypeLivraison: order.deliveryType === 'desk' ? 1 : 0
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOrders(orders.map(o => o.id === order.id ? { ...o, status: 'dhd_pushed', dhdTrackingId: data.tracking } : o));
+        alert('Colis poussé vers DHD avec succès! Tracking: ' + data.tracking);
+      } else {
+        alert('Erreur DHD: ' + (data.details || data.error));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erreur lors de l\'envoi à DHD');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+
+  const syncDhdStatus = async (order: any) => {
+    if (!order.dhdTrackingId) {
+      alert("Pas de code de suivi DHD pour cette commande.");
+      return;
+    }
+    try {
+      setLoadingAction('sync_' + order.id);
+      const res = await fetch(`/api/dhd/status/${order.dhdTrackingId}`);
+      const data = await res.json();
+      if (data.success && data.status) {
+        // Map DHD status to internal if needed, or just update dhdStatus text
+        const updates: any = { dhdStatus: data.status };
+        // Si le colis est expédié, on met à jour le statut interne
+        if (data.status.toLowerCase().includes('expedi') || data.status.toLowerCase().includes('shipped')) {
+           updates.status = 'shipped';
+        }
+        await updateOrderStatus(order.id, order.status, updates);
+        alert('Statut DHD synchronisé: ' + data.status);
+      } else {
+        alert('Erreur lors de la synchronisation: ' + (data.error || 'Statut introuvable'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erreur de connexion lors de la synchronisation avec DHD");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const getDhdOrders = () => {
+    return orders.filter(o => {
+      const st = o.status || 'pending';
+      const matchStatus = dhdFilter === 'all' || st === dhdFilter;
+      const matchSearch = !dhdSearch || 
+                          o.name.toLowerCase().includes(dhdSearch.toLowerCase()) || 
+                          o.phone.includes(dhdSearch) || 
+                          (o.dhdTrackingId && o.dhdTrackingId.includes(dhdSearch));
+      return matchStatus && matchSearch;
+    });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,14 +426,23 @@ export default function Dashboard() {
         body: JSON.stringify({ password })
       });
       
-      const data = await res.json();
-      
-      if (data.success) {
-        localStorage.setItem('admin_token', data.token);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.token) {
+          localStorage.setItem('admin_token', data.token);
+        }
         setIsAuthenticated(true);
+        // Fetch config again to get spreadsheetId etc.
         fetchAuth('/api/config').then(res => res.json()).then(data => setConfig(data));
       } else {
-        setError('Mot de passe incorrect');
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          const data = await res.json();
+          setError(data.error || 'Mot de passe incorrect');
+        } else {
+          const text = await res.text();
+          setError(`Error ${res.status}: ${text.substring(0, 50)}`);
+        }
       }
     } catch (err: any) {
       setError(`Erreur de connexion : ${err.message}`);
@@ -292,11 +463,20 @@ export default function Dashboard() {
     setSaveMessage('');
     
     try {
-      const saveConfig = { ...config, landingPages, promoText };
+      const configToSave = { ...config };
+      if (configToSave.products) {
+        configToSave.products = configToSave.products.map((p: any) => ({
+          ...p,
+          price: configToSave.productPrice,
+          oldPrice: configToSave.productOldPrice
+        }));
+      }
+      setConfig(configToSave);
+      
       const res = await fetchAuth('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saveConfig)
+        body: JSON.stringify(configToSave)
       });
       
       if (res.ok) {
@@ -361,17 +541,26 @@ export default function Dashboard() {
     );
   }
 
+  // Calculate totals
   const filteredOrders = orders.filter(order => {
     if (dateFilter === 'all') return true;
+    if (!order.createdAt || !order.createdAt.seconds) return true;
+    const orderDate = new Date(order.createdAt.seconds * 1000);
+    const now = new Date();
+    if (dateFilter === 'today') {
+      return orderDate.getDate() === now.getDate() &&
+             orderDate.getMonth() === now.getMonth() &&
+             orderDate.getFullYear() === now.getFullYear();
+    } else if (dateFilter === 'week') {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(now.getDate() - 7);
+      return orderDate >= oneWeekAgo;
+    }
     return true;
   });
 
   const totalRevenue = filteredOrders.reduce((acc, order) => acc + (order.price || 0), 0);
   const totalOrders = filteredOrders.length;
-
-  const getProductById = (id: string) => {
-    return config.products?.find(p => p.id === id);
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800" dir="ltr">
@@ -403,12 +592,13 @@ export default function Dashboard() {
               <span className="ml-auto bg-slate-700 text-white text-xs font-bold px-2 py-0.5 rounded-full">{orders.length}</span>
             )}
           </button>
+
           <button 
-            onClick={() => setActiveTab('landing')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'landing' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800 hover:text-white'}`}
+            onClick={() => setActiveTab('dhd_orders')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'dhd_orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800 hover:text-white'}`}
           >
-            <FileText size={20} />
-            Pages de Vente
+            <Plane size={20} />
+            Confirmation DHD
           </button>
           <button 
             onClick={() => setActiveTab('products')}
@@ -420,6 +610,7 @@ export default function Dashboard() {
               <span className="ml-auto bg-slate-700 text-white text-xs font-bold px-2 py-0.5 rounded-full">{config.products.length}</span>
             )}
           </button>
+
           <button 
             onClick={() => setActiveTab('shipping')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'shipping' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'hover:bg-slate-800 hover:text-white'}`}
@@ -474,6 +665,8 @@ export default function Dashboard() {
                   </div>
                   <div className="bg-white rounded-lg p-1 border border-slate-200 shadow-sm flex items-center gap-1 self-start md:self-auto">
                     <button onClick={() => setDateFilter('all')} className={`px-3 py-1.5 text-sm font-bold rounded-md transition-all ${dateFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Tout</button>
+                    <button onClick={() => setDateFilter('week')} className={`px-3 py-1.5 text-sm font-bold rounded-md transition-all ${dateFilter === 'week' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Cette Semaine</button>
+                    <button onClick={() => setDateFilter('today')} className={`px-3 py-1.5 text-sm font-bold rounded-md transition-all ${dateFilter === 'today' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Aujourd'hui</button>
                   </div>
                 </div>
 
@@ -629,193 +822,179 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {/* Landing Pages Tab */}
-            {activeTab === 'landing' && (
+            
+            
+            {/* DHD Confirmation Tab */}
+            {activeTab === 'dhd_orders' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                <div className="flex justify-between items-center mb-8">
-                  <h2 className="text-2xl font-black text-slate-900">Pages de Vente</h2>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 mb-1">Confirmation & DHD</h2>
+                    <p className="text-slate-500 font-medium">Gérez la confirmation et l'envoi vers Ecotrack (DHD)</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <input 
+                        type="text"
+                        placeholder="Recherche (Nom, Tél, Track...)"
+                        value={dhdSearch}
+                        onChange={e => setDhdSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-64 bg-white"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-6">
-                  {landingPages.map((lp, idx) => {
-                    const product = getProductById(lp.productId);
-                    return (
-                      <div key={lp.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
-                              <FileText size={20} />
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-slate-900">{lp.name}</h3>
-                              <p className="text-sm text-slate-500">URL: {lp.customPath}</p>
-                            </div>
-                          </div>
-                          <a 
-                            href={lp.customPath}
-                            target="_blank"
-                            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
-                          >
-                            Prévisualiser
-                          </a>
-                        </div>
+                <div className="flex overflow-x-auto gap-2 pb-2 mb-4 scrollbar-hide">
+                  {['all', 'pending', 'confirmed', 'dhd_pushed', 'shipped', 'unreachable', 'cancelled', 'returned'].map(f => (
+                    <button 
+                      key={f}
+                      onClick={() => setDhdFilter(f)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${dhdFilter === f ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {f === 'all' ? 'Tout' : 
+                       f === 'pending' ? 'Non confirmée' : 
+                       f === 'confirmed' ? 'Confirmée' : 
+                       f === 'dhd_pushed' ? 'Chez DHD' : 
+                       f === 'shipped' ? 'Expédiée' : 
+                       f === 'unreachable' ? 'Injoignable' : 
+                       f === 'cancelled' ? 'Annulée' : 'Retournée'}
+                    </button>
+                  ))}
+                </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Type de page</label>
-                            <select 
-                              value={lp.type}
-                              onChange={(e) => {
-                                const newLP = [...landingPages];
-                                newLP[idx] = { ...lp, type: e.target.value };
-                                setLandingPages(newLP);
-                              }}
-                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium"
-                            >
-                              <option value="v1">Classique (V1)</option>
-                              <option value="v2">Moderne (V2)</option>
-                              <option value="v3">Minimaliste (V3) - Active</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">URL personnalisée</label>
-                            <input 
-                              type="text"
-                              value={lp.customPath}
-                              onChange={(e) => {
-                                const newLP = [...landingPages];
-                                newLP[idx] = { ...lp, customPath: e.target.value };
-                                setLandingPages(newLP);
-                              }}
-                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm"
-                              placeholder="/product-v3/med-alarm-v3"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Produit lié</label>
-                            <select 
-                              value={lp.productId}
-                              onChange={(e) => {
-                                const newLP = [...landingPages];
-                                newLP[idx] = { ...lp, productId: e.target.value };
-                                setLandingPages(newLP);
-                              }}
-                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium"
-                            >
-                              {(config.products || []).map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Produit actuellement lié</label>
-                            <div className="px-4 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl font-medium text-indigo-800">
-                              {product ? product.name : 'Aucun produit'}
-                            </div>
-                          </div>
-                        </div>
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="p-4 font-bold text-slate-600 text-sm">Date</th>
+                          <th className="p-4 font-bold text-slate-600 text-sm">Client / Contact</th>
+                          <th className="p-4 font-bold text-slate-600 text-sm">Produit</th>
+                          <th className="p-4 font-bold text-slate-600 text-sm">Lieu & Prix</th>
+                          <th className="p-4 font-bold text-slate-600 text-sm">Statut</th>
+                          <th className="p-4 font-bold text-slate-600 text-sm text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getDhdOrders().map((order) => {
+                          const status = order.status || 'pending';
+                          return (
+                            <tr key={order.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 text-sm text-slate-500 whitespace-nowrap">
+                                <span className="font-bold text-slate-800 mr-2">#{order.displayId || order.id.slice(0,4)}</span><br/>
+                                {order.createdAt ? new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                              </td>
+                              <td className="p-4">
+                                <div className="font-bold text-slate-800">{order.name}</div>
+                                <div className="flex items-center gap-1 text-slate-500 font-mono text-sm mt-1">
+                                  <Phone size={12} /> {order.phone}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="font-bold text-slate-700 text-sm">{order.productName || 'Produit par défaut'}</div>
+                              </td>
+                              
+                              <td className="p-4">
+                                <div className="text-sm font-medium text-slate-700">{order.wilaya} - {order.commune}</div>
+                                <div className="font-black text-emerald-600 mt-1 mb-2">{order.price} DA <span className="text-xs font-normal text-slate-500">({order.deliveryType === 'home' ? 'Domicile' : 'Stop Desk'})</span></div>
+                                
+                                <div className="flex flex-col gap-1 mt-2">
+                                  <input 
+                                    type="text" 
+                                    placeholder="Note/Remarque interne..." 
+                                    defaultValue={order.note || ''}
+                                    onBlur={(e) => {
+                                      if (e.target.value !== order.note) updateOrderStatus(order.id, status, { note: e.target.value });
+                                    }}
+                                    className="text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-indigo-500 w-full"
+                                  />
+                                </div>
+                              </td>
 
-                        <div className="mt-6 pt-6 border-t border-slate-100">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-2">Texte de la promotion</label>
-                              <input 
-                                type="text"
-                                value={promoText}
-                                onChange={(e) => setPromoText(e.target.value)}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                                placeholder="تخفيض خاص"
-                              />
-                            </div>
-                            <div className="flex items-end">
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <input 
-                                  type="checkbox"
-                                  checked={lp.isActive}
-                                  onChange={(e) => {
-                                    const newLP = [...landingPages];
-                                    newLP[idx] = { ...lp, isActive: e.target.checked };
-                                    setLandingPages(newLP);
-                                  }}
-                                  className="w-5 h-5"
-                                />
-                                <span className="font-bold text-slate-700">Page active</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
+                              <td className="p-4">
+                                <div className="flex flex-col gap-2">
+                                  <select
+                                    value={status}
+                                    onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                                    disabled={loadingAction === order.id}
+                                    className={`text-sm font-bold px-3 py-1.5 rounded-lg border outline-none cursor-pointer transition-colors
+                                      ${status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                        status === 'confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                        status === 'dhd_pushed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                        status === 'shipped' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                        status === 'unreachable' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                        'bg-rose-50 text-rose-700 border-rose-200'
+                                      }`}
+                                  >
+                                    <option value="pending">En attente</option>
+                                    <option value="confirmed">Confirmée</option>
+                                    <option value="unreachable">Injoignable</option>
+                                    <option value="dhd_pushed">Chez DHD (Créé)</option>
+                                    <option value="shipped">Expédié</option>
+                                    <option value="returned">Retournée</option>
+                                    <option value="cancelled">Annulée</option>
+                                  </select>
+                                  
+                                  
+                                  {(status === 'dhd_pushed' || status === 'shipped') && order.dhdTrackingId && (
+                                    <button onClick={() => syncDhdStatus(order)} disabled={loadingAction === 'sync_' + order.id} className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md transition-colors text-xs font-bold" title="Synchroniser l'état depuis DHD">
+                                      {loadingAction === 'sync_' + order.id ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                    </button>
+                                  )}
 
-                        <div className="mt-6 pt-6 border-t border-slate-100">
-                          <h4 className="font-bold text-slate-900 mb-4">Images de la page</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            {[0,1,2,3,4].map(i => (
-                              <ImageUploader
-                                key={i}
-                                path={`landing-pages/${lp.id}/img${i}`}
-                                label={`Image ${i + 1}`}
-                                currentUrl={lp.images?.[i]?.url}
-                                onUpload={(url) => {
-                                  const newLP = [...landingPages];
-                                  const imgs = [...(newLP[idx].images || Array(5).fill({ url: '' }))];
-                                  imgs[i] = { url, alt: `Image ${i + 1}` };
-                                  newLP[idx] = { ...lp, images: imgs };
-                                  setLandingPages(newLP);
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                                  {order.dhdTrackingId && (
+                                    <div className="text-[10px] text-slate-400 font-mono">
+                                      ID: {order.dhdTrackingId}
+                                    </div>
+                                  )}
+                                  {status === 'shipped' && (
+                                    <div className="text-xs text-indigo-600 font-medium flex items-center gap-1">
+                                      <Package size={12} />
+                                      {order.dhdStatus || 'En cours de livraison'}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4 text-right space-y-2">
+                                <div className="flex justify-end gap-2 flex-wrap max-w-[200px] ml-auto">
+                                  <a href={`tel:${order.phone}`} className="p-2 bg-slate-100 text-slate-600 hover:text-blue-600 rounded-lg transition-colors flex items-center justify-center" title="Appeler">
+                                    <Phone size={16} />
+                                  </a>
 
-                        <div className="mt-6 pt-6 border-t border-slate-100">
-                          <h4 className="font-bold text-slate-900 mb-4">Images des avis clients</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            {[0,1,2,3,4].map(i => (
-                              <ImageUploader
-                                key={i}
-                                path={`landing-pages/${lp.id}/testimonial${i}`}
-                                label={`Avis ${i + 1}`}
-                                currentUrl={lp.testimonialImages?.[i]?.url}
-                                onUpload={(url) => {
-                                  const newLP = [...landingPages];
-                                  const imgs = [...(newLP[idx].testimonialImages || Array(5).fill({ url: '' }))];
-                                  imgs[i] = { url, alt: `Avis ${i + 1}` };
-                                  newLP[idx] = { ...lp, testimonialImages: imgs };
-                                  setLandingPages(newLP);
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                                  {status === 'confirmed' && (
+                                    <button onClick={() => pushToDHD(order)} disabled={loadingAction === 'push_' + order.id} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors font-bold text-xs shadow-sm shadow-indigo-200">
+                                      {loadingAction === 'push_' + order.id ? <RefreshCw size={14} className="animate-spin" /> : <Plane size={14} />}
+                                      Pousser DHD
+                                    </button>
+                                  )}
+                                  
+                                  {(status === 'dhd_pushed' || status === 'shipped') && (
+                                    <div className="flex gap-1 flex-wrap justify-end">
+                                      <button onClick={() => alert('Fonctionnalité DHD: Impression étiquette (PDF)')} className="p-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-md transition-colors text-xs font-bold" title="Imprimer l'étiquette">Impr.</button>
+                                      {status === 'dhd_pushed' && (
+                                        <>
+                                          <button onClick={() => alert('Fonctionnalité DHD: Modification de colis en cours de développement (Nécessite API Ecotrack update_colis)')} className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md transition-colors text-xs font-bold" title="Modifier le colis">Modif.</button>
+                                          <button onClick={() => alert('Fonctionnalité DHD: Suppression de colis en cours de développement')} className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-md transition-colors text-xs font-bold" title="Supprimer le colis">Suppr.</button>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {getDhdOrders().length === 0 && (
+                      <div className="text-center py-12 text-slate-500">
+                        <Package size={48} className="mx-auto mb-4 opacity-20" />
+                        <p className="font-medium">Aucune commande trouvée pour ce filtre.</p>
                       </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex justify-end gap-4 sticky bottom-4">
-                  <button 
-                    onClick={() => {
-                      const newLP = {
-                        id: 'lp_' + Date.now(),
-                        name: 'Nouvelle Page',
-                        type: 'v1',
-                        productId: config.products?.[0]?.id || '',
-                        customPath: '/product/new',
-                        isActive: false,
-                      };
-                      setLandingPages([...landingPages, newLP]);
-                    }}
-                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-                  >
-                    + Ajouter une page
-                  </button>
-                  <button 
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all disabled:opacity-70"
-                  >
-                    <Save size={20} />
-                    <span>{saving ? 'Enregistrement...' : 'Sauvegarder'}</span>
-                  </button>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -826,7 +1005,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-8">
                   <h2 className="text-2xl font-black text-slate-900">Gestion des Produits</h2>
                   <button 
-                    onClick={() => setEditingProduct({ id: 'prod_' + Date.now(), name: '', description: '', price: 0, oldPrice: 0, imageUrl: '', isVisible: true })}
+                    onClick={() => setEditingProduct({ id: 'prod_' + Date.now(), name: '', description: '', price: 0, oldPrice: 0, imageUrl: '', isVisible: true, isDhdStored: false, dhdRef: '' })}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
                   >
                     + Nouveau Produit
@@ -835,7 +1014,7 @@ export default function Dashboard() {
 
                 {editingProduct && (
                   <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl mb-8">
-                    <h3 className="text-xl font-bold mb-4">{editingProduct.id?.startsWith('prod_') ? 'Nouveau Produit' : 'Modifier Produit'}</h3>
+                    <h3 className="text-xl font-bold mb-4">{editingProduct.name ? 'Modifier Produit' : 'Nouveau Produit'}</h3>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">Nom du Produit</label>
@@ -859,6 +1038,25 @@ export default function Dashboard() {
                         <label className="block text-sm font-bold text-slate-700 mb-1">URL de l'image</label>
                         <input type="text" value={editingProduct.imageUrl} onChange={(e) => setEditingProduct({...editingProduct, imageUrl: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
                       </div>
+
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Type de commande DHD par défaut pour ce produit</label>
+                        <select 
+                          value={editingProduct.isDhdStored ? 'stock' : 'no_stock'} 
+                          onChange={(e) => setEditingProduct({...editingProduct, isDhdStored: e.target.value === 'stock'})}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                        >
+                          <option value="no_stock">Colis sans stock (Standard)</option>
+                          <option value="stock">Colis avec stock (Stocké chez DHD)</option>
+                        </select>
+                      </div>
+                      {editingProduct.isDhdStored && (
+                        <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                          <label className="block text-sm font-bold text-indigo-900 mb-1">Référence du produit (Code DHD) *</label>
+                          <p className="text-xs text-indigo-700 mb-2">Obligatoire pour les colis avec stock. Ce code sera envoyé comme "TProduit" à l'API Ecotrack.</p>
+                          <input type="text" value={editingProduct.dhdRef || ''} onChange={(e) => setEditingProduct({...editingProduct, dhdRef: e.target.value})} className="w-full px-4 py-2 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 font-mono" placeholder="Ex: REF-STOCK-123" />
+                        </div>
+                      )}
                       
                       <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
                         <input type="checkbox" checked={editingProduct.isVisible} onChange={(e) => setEditingProduct({...editingProduct, isVisible: e.target.checked})} id="isVisible" className="w-5 h-5" />
@@ -934,36 +1132,32 @@ export default function Dashboard() {
               </motion.div>
             )}
 
+            
             {/* Shipping Tab */}
             {activeTab === 'shipping' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl space-y-6">
-                <h2 className="text-2xl font-black text-slate-900 mb-8">Tarifs & Livraison</h2>
-                
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
-                  <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <MapPin className="text-indigo-500"/> Prix de livraison par Wilaya
-                  </h3>
-                  
-                  <div className="overflow-x-auto">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                <h2 className="text-2xl font-black text-slate-900 mb-8">Tarifs de Livraison & Wilayas</h2>
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-slate-100">
+                    <p className="text-slate-500 text-sm">Consultez les tarifs de livraison par wilaya (Domicile et Stop Desk). Ces données sont utilisées lors de la commande.</p>
+                  </div>
+                  <div className="overflow-x-auto max-h-[600px]">
                     <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
+                      <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+                        <tr>
                           <th className="p-4 font-bold text-slate-600 text-sm">Wilaya</th>
-                          <th className="p-4 font-bold text-slate-600 text-sm">Domicile (DA)</th>
-                          <th className="p-4 font-bold text-slate-600 text-sm">Stop Desk (DA)</th>
+                          <th className="p-4 font-bold text-slate-600 text-sm">Tarif Domicile (DA)</th>
+                          <th className="p-4 font-bold text-slate-600 text-sm">Tarif Stop Desk (DA)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {import_data.WILAYAS.map((w: any, i: number) => {
-                          const prices = import_data.DELIVERY_PRICES[w.code] || { home: 0, desk: 0 };
-                          return (
-                            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                              <td className="p-4 font-bold text-slate-800">{w.name}</td>
-                              <td className="p-4 font-black text-emerald-600">{prices.home} DA</td>
-                              <td className="p-4 font-black text-amber-600">{prices.desk} DA</td>
-                            </tr>
-                          );
-                        })}
+                        {Object.entries(import_data.DELIVERY_PRICES).map(([wilayaName, prices]: any) => (
+                          <tr key={wilayaName} className="border-b border-slate-50 hover:bg-slate-50">
+                            <td className="p-4 font-bold text-slate-800">{wilayaName}</td>
+                            <td className="p-4 text-emerald-600 font-black">{prices.home}</td>
+                            <td className="p-4 text-emerald-600 font-black">{prices.desk}</td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -972,6 +1166,137 @@ export default function Dashboard() {
             )}
 
             {/* Settings Tab */}
+            
+            {activeTab === 'integrations' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl space-y-6">
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+                  <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
+                    <svg className="w-8 h-8 text-emerald-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19.5 3h-15C3.12 3 2 4.12 2 5.5v13C2 19.88 3.12 21 4.5 21h15c1.38 0 2.5-1.12 2.5-2.5v-13C22 4.12 20.88 3 19.5 3zM13 17H5v-2h8v2zm6-4H5v-2h14v2zm0-4H5V7h14v2z" />
+                    </svg>
+                    Intégration Google Sheets
+                  </h3>
+                  
+                  <p className="text-slate-600 mb-8 leading-relaxed">
+                    Connectez votre compte Google pour exporter et synchroniser automatiquement toutes vos commandes vers un fichier Google Sheets.
+                  </p>
+
+                  <div className="flex flex-col gap-6 items-start">
+                    {!googleUser ? (
+                      <button 
+                        onClick={handleGoogleSignIn}
+                        className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-xl font-bold flex items-center gap-3 shadow-sm transition-all"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 48 48">
+                          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                          <path fill="none" d="M0 0h48v48H0z"></path>
+                        </svg>
+                        Se connecter avec Google
+                      </button>
+                    ) : (
+                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-6">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold">
+                              {googleUser.displayName?.charAt(0) || 'U'}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800">{googleUser.displayName}</p>
+                              <p className="text-sm text-slate-500">{googleUser.email}</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={async () => { await logout(); setGoogleUser(null); setGoogleToken(null); }}
+                            className="text-sm text-rose-600 font-bold hover:underline"
+                          >
+                            Déconnexion
+                          </button>
+                        </div>
+                        
+                        <div className="border-t border-slate-200 pt-6">
+                          <div className="mb-6">
+                            <h4 className="text-md font-bold text-slate-800 mb-3">Lier un fichier Google Sheets</h4>
+                            {config.spreadsheetId ? (
+                              <div className="mb-4">
+                                <p className="text-sm font-bold text-slate-700 mb-1">Fichier Actuel :</p>
+                                <a 
+                                  href={`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}/edit`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="text-indigo-600 hover:underline break-all"
+                                >
+                                  Ouvrir le fichier actuel
+                                </a>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-amber-600 mb-4 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                                Aucun fichier Sheets n'est encore lié.
+                              </p>
+                            )}
+                            
+                            <div className="flex gap-2 mb-2">
+                              <input 
+                                type="text"
+                                placeholder="Lien ou ID du nouveau Google Sheet (Optionnel)"
+                                className="flex-1 bg-white border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                value={customSheetInput}
+                                onChange={(e) => setCustomSheetInput(e.target.value)}
+                              />
+                              <button 
+                                onClick={saveCustomSheetId}
+                                disabled={!customSheetInput.trim()}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-50"
+                              >
+                                Lier ce fichier
+                              </button>
+                            </div>
+                            <p className="text-xs text-slate-500">Si vous laissez vide et cliquez sur synchroniser, un nouveau fichier sera créé automatiquement.</p>
+                          </div>
+                          
+                          <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
+                            <h4 className="text-sm font-bold text-emerald-800 mb-2">Synchronisation Manuelle</h4>
+                            <p className="text-xs text-emerald-600 mb-4">La synchronisation est automatique lors des nouvelles commandes. Vous pouvez forcer la synchronisation manuellement pour les anciennes commandes.</p>
+                            
+                            <div className="flex flex-col sm:flex-row gap-3">
+                              <select 
+                                className="bg-white border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all text-sm font-bold shadow-sm"
+                                value={syncDateFilter}
+                                onChange={(e) => setSyncDateFilter(e.target.value)}
+                              >
+                                <option value="all">Toutes les commandes</option>
+                                <option value="today">Aujourd'hui</option>
+                                <option value="yesterday">Hier</option>
+                                <option value="7days">7 derniers jours</option>
+                              </select>
+
+                              <button
+                                onClick={handleSyncToSheets}
+                                disabled={syncingSheets}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-70 shadow-sm"
+                              >
+                                <RefreshCw size={20} className={syncingSheets ? 'animate-spin' : ''} />
+                                {syncingSheets ? 'Synchronisation...' : 'Synchroniser'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {sheetMessage && (
+                      <div className={`w-full p-4 rounded-xl font-bold flex items-center gap-2 ${sheetMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                        {sheetMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        {sheetMessage.text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {activeTab === 'settings' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <h2 className="text-2xl font-black text-slate-900 mb-8">Configurations du Magasin</h2>
@@ -1021,9 +1346,20 @@ export default function Dashboard() {
                         <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500"></div>
                       </label>
                     </div>
+
+                    <div className="mt-6">
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Texte de la promotion (affiché dans le formulaire)</label>
+                      <input 
+                        type="text" 
+                        value={config.promoText || 'عرض ترويجي محدود!'}
+                        onChange={(e) => setConfig({...config, promoText: e.target.value})}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-right"
+                        dir="rtl"
+                      />
+                    </div>
                   </div>
 
-                  <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+                                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
                     <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
                       <Clock className="text-indigo-500"/>
                       Paramètres du Minuteur
@@ -1106,156 +1442,6 @@ export default function Dashboard() {
                     )}
                   </div>
                 </form>
-              </motion.div>
-            )}
-
-            {/* Integrations Tab */}
-            {activeTab === 'integrations' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl space-y-6">
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
-                  <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
-                    <svg className="w-8 h-8 text-emerald-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19.5 3h-15C3.12 3 2 4.12 2 5.5v13C2 19.88 3.12 21 4.5 21h15c1.38 0 2.5-1.12 2.5-2.5v-13C22 4.12 20.88 3 19.5 3zM13 17H5v-2h8v2zm6-4H5v-2h14v2zm0-4H5V7h14v2z" />
-                    </svg>
-                    Intégration Google Sheets
-                  </h3>
-                  
-                  <p className="text-slate-600 mb-8 leading-relaxed">
-                    Connectez votre compte Google pour exporter et synchroniser automatiquement toutes vos commandes vers un fichier Google Sheets.
-                  </p>
-
-                  <div className="flex flex-col gap-6 items-start">
-                    {!googleUser ? (
-                      <button 
-                        onClick={handleGoogleSignIn}
-                        className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-xl font-bold flex items-center gap-3 shadow-sm transition-all"
-                      >
-                        <svg className="w-5 h-5" viewBox="0 0 48 48">
-                          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                          <path fill="none" d="M0 0h48v48H0z"></path>
-                        </svg>
-                        Se connecter avec Google
-                      </button>
-                    ) : googleNeedsReauth ? (
-                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center font-bold">
-                              {googleUser.displayName?.charAt(0) || 'U'}
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-800">{googleUser.displayName}</p>
-                              <p className="text-sm text-slate-500">{googleUser.email}</p>
-                              <p className="text-xs text-amber-600 font-medium mt-1">Session expirée - Reconnectez-vous pour Sheets</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={handleGoogleSignIn}
-                            className="px-4 py-2 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-colors"
-                          >
-                            Reconnecter
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-6">
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold">
-                              {googleUser.displayName?.charAt(0) || 'U'}
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-800">{googleUser.displayName}</p>
-                              <p className="text-sm text-slate-500">{googleUser.email}</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={async () => { await logout(); setGoogleUser(null); setGoogleToken(null); }}
-                            className="text-sm text-rose-600 font-bold hover:underline"
-                          >
-                            Déconnexion
-                          </button>
-                        </div>
-                        
-                        <div className="border-t border-slate-200 pt-6">
-                          <div className="mb-6">
-                            <h4 className="text-md font-bold text-slate-800 mb-3">Lier un fichier Google Sheets</h4>
-                            {config.spreadsheetId ? (
-                              <div className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl">
-                                <CheckCircle size={20} className="text-emerald-500 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-slate-800 text-sm truncate">Fichier lié :</p>
-                                  <p className="text-xs text-slate-500 font-mono truncate">{config.spreadsheetId}</p>
-                                </div>
-                                <button 
-                                  onClick={async () => {
-                                    const updatedConfig = { ...config, spreadsheetId: '' };
-                                    setConfig(updatedConfig);
-                                    await fetchAuth('/api/config', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify(updatedConfig)
-                                    });
-                                  }}
-                                  className="text-xs text-rose-600 font-bold hover:underline shrink-0"
-                                >
-                                  Dissocier
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex gap-2">
-                                <input 
-                                  type="text"
-                                  placeholder="ID du Google Sheet ou URL complète..."
-                                  value={customSheetInput}
-                                  onChange={(e) => setCustomSheetInput(e.target.value)}
-                                  className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                />
-                                <button 
-                                  onClick={saveCustomSheetId}
-                                  disabled={!customSheetInput.trim()}
-                                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 disabled:opacity-50"
-                                >
-                                  Lier
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="border-t border-slate-100 pt-6">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-bold text-slate-800">Synchroniser vers Google Sheets</h4>
-                                <p className="text-sm text-slate-500">Envoyer les nouvelles commandes vers votre fichier</p>
-                              </div>
-                              <button 
-                                onClick={handleSyncToSheets}
-                                disabled={syncingSheets}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-70 transition-colors"
-                              >
-                                {syncingSheets ? <RefreshCw size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-                                {syncingSheets ? 'Synchronisation...' : 'Synchroniser'}
-                              </button>
-                            </div>
-                          </div>
-
-                          {sheetMessage && (
-                            <div className={`mt-4 px-4 py-3 rounded-xl font-bold text-sm border ${
-                              sheetMessage.type === 'success' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}>
-                              {sheetMessage.text}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </motion.div>
             )}
 

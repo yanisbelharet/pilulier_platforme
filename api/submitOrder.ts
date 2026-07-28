@@ -19,42 +19,54 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, phone, wilaya, commune, deliveryType, price, productId, productName } = req.body;
+    const { name, phone, wilaya, commune, deliveryType, price } = req.body;
+      
+    // Save order to Firestore
+    try {
+      await addDoc(collection(db, "orders"), {
+        name,
+        phone,
+        wilaya,
+        commune,
+        deliveryType,
+        price,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Error saving order to Firestore:", err);
+    }
 
-    // Save order to Firestore FIRST - if this fails, return error
-    const orderRef = await addDoc(collection(db, "orders"), {
-      name,
-      phone,
-      wilaya,
-      commune,
-      deliveryType,
-      price,
-      productId: productId || 'med-alarm',
-      productName: productName || 'منبه الدواء الذكي',
-      createdAt: serverTimestamp()
-    });
-
-    // Telegram notification (optional - don't fail if not configured)
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
-    if (botToken && chatId) {
-      const text = `🛒 *طلبية جديدة!*\n👤 *الاسم:* ${name}\n📞 *رقم الهاتف:* ${phone}\n📍 *الولاية:* ${wilaya}\n🏙️ *البلدية:* ${commune}\n🚚 *نوع التوصيل:* ${deliveryType === 'home' ? 'لباب المنزل' : 'للمكتب (Stop Desk)'}\n💰 *السعر الإجمالي:* ${price} د.ج`;
-
-      try {
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
-        });
-      } catch (e) {
-        console.error("Telegram error:", e);
-      }
+    if (!botToken || !chatId) {
+      console.warn("Telegram credentials not configured. Order received but not sent to Telegram.");
+      return res.status(200).json({ success: true, warning: "Telegram not configured" });
     }
 
-    return res.status(200).json({ success: true, orderId: orderRef.id });
+    const text = `🛒 *طلبية جديدة!*\n👤 *الاسم:* ${name}\n📞 *رقم الهاتف:* ${phone}\n📍 *الولاية:* ${wilaya}\n🏙️ *البلدية:* ${commune}\n🚚 *نوع التوصيل:* ${deliveryType === 'home' ? 'لباب المنزل' : 'للمكتب (Stop Desk)'}\n💰 *السعر الإجمالي:* ${price} د.ج`;
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text,
+        parse_mode: "Markdown",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Telegram API Error:", errorData);
+      return res.status(500).json({ success: false, error: "Failed to send to Telegram" });
+    }
+
+    return res.status(200).json({ success: true });
   } catch (error) {
     console.error("Order processing error:", error);
-    return res.status(500).json({ success: false, error: "Erreur lors de l'enregistrement de la commande" });
+    return res.status(500).json({ success: false, error: "Internal server error" });
   }
 }
