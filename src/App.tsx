@@ -13,7 +13,7 @@ const defaultProducts = [
     description: "تخلص من القلق ونظم أدويتك بكل سهولة! حافظة ذكية مزودة بـ 4 منبهات قوية لتذكيرك في الوقت المحدد.",
     price: 2000,
     oldPrice: 2900,
-    imageUrl: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/UcuCAbqBuLvphQwpgudEKiSTjNT7tkDWqG2nmVoF.webp",
+    imageUrl: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/jenr3Djsu1kNTjdGpKFouWi3RK3rme5ukYxSVakb.webp",
     isVisible: true,
     customPath: "/product-v3/med-alarm-v3"
   }
@@ -38,21 +38,22 @@ function buildConfig(data: any) {
     price: p.price || base.productPrice,
     oldPrice: p.oldPrice || base.productOldPrice,
   }));
+  const BASE = 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/';
   const defaultLP = {
     id: 'lp_v3', name: 'Page Active (V3)', type: 'v3', productId: 'med-alarm-v3', customPath: '/product-v3/med-alarm-v3', isActive: true,
     images: [
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/UcuCAbqBuLvphQwpgudEKiSTjNT7tkDWqG2nmVoF.webp', alt: 'Product' },
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/2G9Lpmj05VJfKGMUI8OFXtwK0j6KZHqkUDez5iJd.webp', alt: '' },
-      { url: 'https://cdn.youcan.shop/stores/defae844a0bbda3e5af90b6e7c10442b/others/K7xCrltppCNd4UVbJGSOqObap2IJ85nFDeub8El2.jpg', alt: '' },
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/9S9lQftX0vkGaYO3eBDEhZKZz3A7ASO4qX28iDo1.webp', alt: '' },
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/pZB4Jdism3G9XRZxfww4wFkEggmMA8PndiOsWMHi.webp', alt: '' },
+      { url: BASE + 'jenr3Djsu1kNTjdGpKFouWi3RK3rme5ukYxSVakb.webp', alt: 'Product' },
+      { url: BASE + '3Wy8gTr1VwANl58M7EUfGpldoEPr3aY63OBbInqs.webp', alt: '' },
+      { url: BASE + 'qpnrAyBbwEuVJFjCsNyCnrBPxeXzg09vLqG9boxT.webp', alt: '' },
+      { url: BASE + 'l0Ex1rXngcA8ogmZQUmXice5GirmcUB4ekQ0Gngz.webp', alt: '' },
+      { url: BASE + 'Mkvt5uLWnwweSszmuYf0N53dNeb6XtxHCD4xVkhQ.webp', alt: '' },
     ],
     testimonialImages: [
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/DjPMzDRJA0wqz9GjGZan9K83GKdvL9Lk1eGE9N6M.jpg', alt: 'Review 1' },
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/KK7qazHegt3JM9Aq9FwtLPAzgw90yER4qQwhChhI.jpg', alt: 'Review 2' },
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/M35up3JUQRdRyZds8iIxZ4FoFiaVe5DB5XMDooXD.jpg', alt: 'Review 3' },
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/rKNm0kQKDxKqAFrKBnqY2p0eAmeTrgoT6MIwBxJZ.jpg', alt: 'Review 4' },
-      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/qEzjLoBUwKkAawTPh8RnBMvBkO5VCbiY4zQzx4Re.jpg', alt: 'Review 5' },
+      { url: BASE + 'XaewCRs0RF7hAjCjBoDWHoHwEDF1IvE83wUv3qn8.webp', alt: 'Review 1' },
+      { url: BASE + 'Fa0fi22jsvzCQ9zSFo6Mv20Og2YJwhJSga3RsbiJ.webp', alt: 'Review 2' },
+      { url: BASE + 'J1p0AvhxKaKnDYyBumw6zwOo5yKbEIl91fWhWBsF.webp', alt: 'Review 3' },
+      { url: BASE + 'vL1zj2NHy12mUkiJjZBsTTIIBM8LE5YvPqdFEZMj.webp', alt: 'Review 4' },
+      { url: BASE + 'd6WcuiC5ne67a26tdAQPzK6jSaIl7z1nWuwHrcWF.webp', alt: 'Review 5' },
     ],
   };
   const landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [defaultLP];

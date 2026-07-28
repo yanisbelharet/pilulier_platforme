@@ -5,6 +5,8 @@ import { WILAYAS, DELIVERY_PRICES } from './data';
 import { getCommunesByWilayaId } from 'algeria-locations';
 import { useParams, Navigate } from 'react-router-dom';
 
+const BASE_URL = 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/';
+
 // --- Components ---
 
 const CountdownTimer = ({ hoursVal }: { hoursVal?: number }) => {
@@ -73,10 +75,10 @@ const Hero = ({ product, promoActive, timerEnabled, timerHours, onInitiateChecko
           className="relative mt-8 mb-8"
         >
           <img 
-            src={imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5e4708705?q=80&w=800&auto=format&fit=crop'} 
+            src={imageUrl || BASE_URL + 'jenr3Djsu1kNTjdGpKFouWi3RK3rme5ukYxSVakb.webp'} 
             alt={name} 
-            width="2500"
-            height="2920"
+            width="800"
+            height="936"
             className="w-full h-auto rounded-[40px] shadow-2xl border border-slate-100"
           />
           {/* Badge */}
@@ -190,11 +192,11 @@ const Features = () => {
 };
 
 const defaultTestimonialImages = [
-  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/DjPMzDRJA0wqz9GjGZan9K83GKdvL9Lk1eGE9N6M.jpg", w: 1440, h: 1413 },
-  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/KK7qazHegt3JM9Aq9FwtLPAzgw90yER4qQwhChhI.jpg", w: 1440, h: 1550 },
-  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/M35up3JUQRdRyZds8iIxZ4FoFiaVe5DB5XMDooXD.jpg", w: 1440, h: 1319 },
-  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/rKNm0kQKDxKqAFrKBnqY2p0eAmeTrgoT6MIwBxJZ.jpg", w: 1440, h: 1078 },
-  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/qEzjLoBUwKkAawTPh8RnBMvBkO5VCbiY4zQzx4Re.jpg", w: 1440, h: 995 }
+  { url: BASE_URL + 'XaewCRs0RF7hAjCjBoDWHoHwEDF1IvE83wUv3qn8.webp' },
+  { url: BASE_URL + 'Fa0fi22jsvzCQ9zSFo6Mv20Og2YJwhJSga3RsbiJ.webp' },
+  { url: BASE_URL + 'J1p0AvhxKaKnDYyBumw6zwOo5yKbEIl91fWhWBsF.webp' },
+  { url: BASE_URL + 'vL1zj2NHy12mUkiJjZBsTTIIBM8LE5YvPqdFEZMj.webp' },
+  { url: BASE_URL + 'd6WcuiC5ne67a26tdAQPzK6jSaIl7z1nWuwHrcWF.webp' },
 ];
 
 export const Testimonials = ({ images }: { images?: { url: string; w?: number; h?: number }[] }) => {
