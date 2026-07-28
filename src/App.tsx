@@ -56,7 +56,13 @@ function buildConfig(data: any) {
       { url: BASE + 'd6WcuiC5ne67a26tdAQPzK6jSaIl7z1nWuwHrcWF.webp', alt: 'Review 5' },
     ],
   };
-  const landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [defaultLP];
+  let landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [defaultLP];
+  landingPages = landingPages.map((lp: any) => ({
+    ...defaultLP,
+    ...lp,
+    images: lp.images && lp.images.length > 0 && lp.images[0]?.url ? lp.images : defaultLP.images,
+    testimonialImages: lp.testimonialImages && lp.testimonialImages.length > 0 && lp.testimonialImages[0]?.url ? lp.testimonialImages : defaultLP.testimonialImages,
+  }));
   return { ...base, ...data, products: finalProducts, landingPages };
 }
 
