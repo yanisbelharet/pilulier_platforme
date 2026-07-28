@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPageV3 from './LandingPageV3';
 import Dashboard from './Dashboard';
 import Storefront from './Storefront';
@@ -19,35 +19,41 @@ const defaultProducts = [
   }
 ];
 
+function buildConfig(data: any) {
+  const base = { productPrice: 2000, productOldPrice: 3500, promoActive: true, visits: 0, fbPixelId: '', tiktokPixelId: '', timerEnabled: true, timerHours: 24, products: defaultProducts, landingPages: [], promoText: 'تخفيض خاص' };
+  if (!data) return base;
+  let finalProducts = [];
+  if (data.products && data.products.length > 0) {
+    finalProducts = [...data.products];
+    for (const dp of defaultProducts) {
+      if (!finalProducts.find(p => p.id === dp.id)) {
+        finalProducts.push(dp);
+      }
+    }
+  } else {
+    finalProducts = [...defaultProducts];
+  }
+  finalProducts = finalProducts.map(p => ({
+    ...p,
+    price: p.price || base.productPrice,
+    oldPrice: p.oldPrice || base.productOldPrice,
+  }));
+  const landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [{ id: 'lp_v3', name: 'Page Active (V3)', type: 'v3', productId: 'med-alarm-v3', customPath: '/product-v3/med-alarm-v3', isActive: true }];
+  return { ...base, ...data, products: finalProducts, landingPages };
+}
+
 export default function App() {
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<any>(() => {
+    const cached = sessionStorage.getItem('app_config');
+    return cached ? buildConfig(JSON.parse(cached)) : buildConfig(null);
+  });
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "config", "main"), (docSnap) => {
-      const base = { productPrice: 2000, productOldPrice: 3500, promoActive: true, visits: 0, fbPixelId: '', tiktokPixelId: '', timerEnabled: true, timerHours: 24, products: defaultProducts, landingPages: [], promoText: 'تخفيض خاص' };
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        let finalProducts = [];
-        if (data.products && data.products.length > 0) {
-          finalProducts = [...data.products];
-          for (const dp of defaultProducts) {
-            if (!finalProducts.find(p => p.id === dp.id)) {
-              finalProducts.push(dp);
-            }
-          }
-        } else {
-          finalProducts = [...defaultProducts];
-        }
-        finalProducts = finalProducts.map(p => ({
-          ...p,
-          price: p.price || base.productPrice,
-          oldPrice: p.oldPrice || base.productOldPrice,
-        }));
-        const landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [{ id: 'lp_v3', name: 'Page Active (V3)', type: 'v3', productId: 'med-alarm-v3', customPath: '/product-v3/med-alarm-v3', isActive: true }];
-        setConfig({ ...base, ...data, products: finalProducts, landingPages });
-      } else {
-        setConfig(base);
-      }
+      const data = docSnap.exists() ? docSnap.data() : null;
+      const cfg = buildConfig(data);
+      sessionStorage.setItem('app_config', JSON.stringify(cfg));
+      setConfig(cfg);
     });
     return () => unsub();
   }, []);
@@ -105,8 +111,6 @@ export default function App() {
       window.ttq.track('CompletePayment', { contents: [{ content_id: product.id, content_type: 'product', content_name: product.name }], value: price, currency: 'DZD' });
     }
   };
-
-  if (!config) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
 
   return (
     <Router>
