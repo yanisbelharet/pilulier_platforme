@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   projectId: "gen-lang-client-0983661862",
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, "ai-studio-e9c2d681-7821-46c6-83a5-06aac423e67a");
+export const storage = getStorage(app);
 
 export const auth = getAuth(app);
 const provider = new GoogleAuthProvider();

@@ -189,14 +189,16 @@ const Features = () => {
   );
 };
 
-export const Testimonials = () => {
-  const reviews = [
-    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/DjPMzDRJA0wqz9GjGZan9K83GKdvL9Lk1eGE9N6M.jpg", w: 1440, h: 1413 },
-    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/KK7qazHegt3JM9Aq9FwtLPAzgw90yER4qQwhChhI.jpg", w: 1440, h: 1550 },
-    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/M35up3JUQRdRyZds8iIxZ4FoFiaVe5DB5XMDooXD.jpg", w: 1440, h: 1319 },
-    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/rKNm0kQKDxKqAFrKBnqY2p0eAmeTrgoT6MIwBxJZ.jpg", w: 1440, h: 1078 },
-    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/qEzjLoBUwKkAawTPh8RnBMvBkO5VCbiY4zQzx4Re.jpg", w: 1440, h: 995 }
-  ];
+const defaultTestimonialImages = [
+  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/DjPMzDRJA0wqz9GjGZan9K83GKdvL9Lk1eGE9N6M.jpg", w: 1440, h: 1413 },
+  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/KK7qazHegt3JM9Aq9FwtLPAzgw90yER4qQwhChhI.jpg", w: 1440, h: 1550 },
+  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/M35up3JUQRdRyZds8iIxZ4FoFiaVe5DB5XMDooXD.jpg", w: 1440, h: 1319 },
+  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/rKNm0kQKDxKqAFrKBnqY2p0eAmeTrgoT6MIwBxJZ.jpg", w: 1440, h: 1078 },
+  { url: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/qEzjLoBUwKkAawTPh8RnBMvBkO5VCbiY4zQzx4Re.jpg", w: 1440, h: 995 }
+];
+
+export const Testimonials = ({ images }: { images?: { url: string; w?: number; h?: number }[] }) => {
+  const items = (images && images.length > 0) ? images : defaultTestimonialImages;
 
   return (
     <section className="py-16 bg-slate-50 px-4 border-y border-slate-100">
@@ -209,9 +211,9 @@ export const Testimonials = () => {
         </div>
         
         <div className="space-y-6">
-          {reviews.map((img, i) => (
+          {items.map((img: any, i: number) => (
             <div key={i} className="rounded-3xl overflow-hidden shadow-md border border-slate-100">
-              <img src={img.src} alt={`رأي زبون ${i + 1}`} width={img.w} height={img.h} className="w-full h-auto" />
+              <img src={img.url} alt={`رأي زبون ${i + 1}`} width={img.w || 1440} height={img.h || 1413} className="w-full h-auto" />
             </div>
           ))}
         </div>

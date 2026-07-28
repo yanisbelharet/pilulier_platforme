@@ -38,7 +38,24 @@ function buildConfig(data: any) {
     price: p.price || base.productPrice,
     oldPrice: p.oldPrice || base.productOldPrice,
   }));
-  const landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [{ id: 'lp_v3', name: 'Page Active (V3)', type: 'v3', productId: 'med-alarm-v3', customPath: '/product-v3/med-alarm-v3', isActive: true }];
+  const defaultLP = {
+    id: 'lp_v3', name: 'Page Active (V3)', type: 'v3', productId: 'med-alarm-v3', customPath: '/product-v3/med-alarm-v3', isActive: true,
+    images: [
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/UcuCAbqBuLvphQwpgudEKiSTjNT7tkDWqG2nmVoF.webp', alt: 'Product' },
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/2G9Lpmj05VJfKGMUI8OFXtwK0j6KZHqkUDez5iJd.webp', alt: '' },
+      { url: 'https://cdn.youcan.shop/stores/defae844a0bbda3e5af90b6e7c10442b/others/K7xCrltppCNd4UVbJGSOqObap2IJ85nFDeub8El2.jpg', alt: '' },
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/9S9lQftX0vkGaYO3eBDEhZKZz3A7ASO4qX28iDo1.webp', alt: '' },
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/pZB4Jdism3G9XRZxfww4wFkEggmMA8PndiOsWMHi.webp', alt: '' },
+    ],
+    testimonialImages: [
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/DjPMzDRJA0wqz9GjGZan9K83GKdvL9Lk1eGE9N6M.jpg', alt: 'Review 1' },
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/KK7qazHegt3JM9Aq9FwtLPAzgw90yER4qQwhChhI.jpg', alt: 'Review 2' },
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/M35up3JUQRdRyZds8iIxZ4FoFiaVe5DB5XMDooXD.jpg', alt: 'Review 3' },
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/rKNm0kQKDxKqAFrKBnqY2p0eAmeTrgoT6MIwBxJZ.jpg', alt: 'Review 4' },
+      { url: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/qEzjLoBUwKkAawTPh8RnBMvBkO5VCbiY4zQzx4Re.jpg', alt: 'Review 5' },
+    ],
+  };
+  const landingPages = data.landingPages && data.landingPages.length > 0 ? data.landingPages : [defaultLP];
   return { ...base, ...data, products: finalProducts, landingPages };
 }
 

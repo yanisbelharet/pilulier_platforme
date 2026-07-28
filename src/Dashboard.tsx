@@ -3,6 +3,7 @@ import { Lock, Settings, Save, LogOut, TrendingUp, ShoppingCart, ShoppingBag, Ta
 import * as import_data from './data';
 import { motion } from 'motion/react';
 import { initAuth, googleSignIn, getAccessToken, logout } from './firebase';
+import ImageUploader from './ImageUploader';
 import { User } from 'firebase/auth';
 
 export default function Dashboard() {
@@ -741,6 +742,48 @@ export default function Dashboard() {
                                 <span className="font-bold text-slate-700">Page active</span>
                               </label>
                             </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 pt-6 border-t border-slate-100">
+                          <h4 className="font-bold text-slate-900 mb-4">Images de la page</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            {[0,1,2,3,4].map(i => (
+                              <ImageUploader
+                                key={i}
+                                path={`landing-pages/${lp.id}/img${i}`}
+                                label={`Image ${i + 1}`}
+                                currentUrl={lp.images?.[i]?.url}
+                                onUpload={(url) => {
+                                  const newLP = [...landingPages];
+                                  const imgs = [...(newLP[idx].images || Array(5).fill({ url: '' }))];
+                                  imgs[i] = { url, alt: `Image ${i + 1}` };
+                                  newLP[idx] = { ...lp, images: imgs };
+                                  setLandingPages(newLP);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mt-6 pt-6 border-t border-slate-100">
+                          <h4 className="font-bold text-slate-900 mb-4">Images des avis clients</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            {[0,1,2,3,4].map(i => (
+                              <ImageUploader
+                                key={i}
+                                path={`landing-pages/${lp.id}/testimonial${i}`}
+                                label={`Avis ${i + 1}`}
+                                currentUrl={lp.testimonialImages?.[i]?.url}
+                                onUpload={(url) => {
+                                  const newLP = [...landingPages];
+                                  const imgs = [...(newLP[idx].testimonialImages || Array(5).fill({ url: '' }))];
+                                  imgs[i] = { url, alt: `Avis ${i + 1}` };
+                                  newLP[idx] = { ...lp, testimonialImages: imgs };
+                                  setLandingPages(newLP);
+                                }}
+                              />
+                            ))}
                           </div>
                         </div>
                       </div>
