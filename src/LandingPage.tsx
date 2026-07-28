@@ -75,7 +75,9 @@ const Hero = ({ product, promoActive, timerEnabled, timerHours, onInitiateChecko
           <img 
             src={imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5e4708705?q=80&w=800&auto=format&fit=crop'} 
             alt={name} 
-            className="w-full h-auto rounded-[40px] shadow-2xl border border-slate-100 object-cover"
+            width="2500"
+            height="2920"
+            className="w-full h-auto rounded-[40px] shadow-2xl border border-slate-100"
           />
           {/* Badge */}
           {promoActive && <div className="absolute -bottom-4 -left-4 bg-rose-500 text-white w-24 h-24 rounded-full flex flex-col items-center justify-center font-black shadow-lg shadow-rose-200 transform -rotate-12 border-4 border-white">
@@ -189,11 +191,11 @@ const Features = () => {
 
 export const Testimonials = () => {
   const reviews = [
-    "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/DjPMzDRJA0wqz9GjGZan9K83GKdvL9Lk1eGE9N6M.jpg",
-    "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/KK7qazHegt3JM9Aq9FwtLPAzgw90yER4qQwhChhI.jpg",
-    "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/M35up3JUQRdRyZds8iIxZ4FoFiaVe5DB5XMDooXD.jpg",
-    "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/rKNm0kQKDxKqAFrKBnqY2p0eAmeTrgoT6MIwBxJZ.jpg",
-    "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/qEzjLoBUwKkAawTPh8RnBMvBkO5VCbiY4zQzx4Re.jpg"
+    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/DjPMzDRJA0wqz9GjGZan9K83GKdvL9Lk1eGE9N6M.jpg", w: 1440, h: 1413 },
+    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/KK7qazHegt3JM9Aq9FwtLPAzgw90yER4qQwhChhI.jpg", w: 1440, h: 1550 },
+    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/M35up3JUQRdRyZds8iIxZ4FoFiaVe5DB5XMDooXD.jpg", w: 1440, h: 1319 },
+    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/rKNm0kQKDxKqAFrKBnqY2p0eAmeTrgoT6MIwBxJZ.jpg", w: 1440, h: 1078 },
+    { src: "https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/qEzjLoBUwKkAawTPh8RnBMvBkO5VCbiY4zQzx4Re.jpg", w: 1440, h: 995 }
   ];
 
   return (
@@ -207,9 +209,9 @@ export const Testimonials = () => {
         </div>
         
         <div className="space-y-6">
-          {reviews.map((imgSrc, i) => (
+          {reviews.map((img, i) => (
             <div key={i} className="rounded-3xl overflow-hidden shadow-md border border-slate-100">
-              <img src={imgSrc} alt={`رأي زبون ${i + 1}`} className="w-full h-auto object-cover" />
+              <img src={img.src} alt={`رأي زبون ${i + 1}`} width={img.w} height={img.h} className="w-full h-auto" />
             </div>
           ))}
         </div>

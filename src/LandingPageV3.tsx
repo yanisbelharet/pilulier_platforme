@@ -5,12 +5,12 @@ import { ShoppingCart } from 'lucide-react';
 const CheckoutForm = React.lazy(() => import('./LandingPage').then(m => ({ default: m.CheckoutForm })));
 const Testimonials = React.lazy(() => import('./LandingPage').then(m => ({ default: m.Testimonials })));
 
-const HERO_IMG = 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/UcuCAbqBuLvphQwpgudEKiSTjNT7tkDWqG2nmVoF.webp';
 const IMGS = [
-  'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/2G9Lpmj05VJfKGMUI8OFXtwK0j6KZHqkUDez5iJd.webp',
-  'https://cdn.youcan.shop/stores/defae844a0bbda3e5af90b6e7c10442b/others/K7xCrltppCNd4UVbJGSOqObap2IJ85nFDeub8El2.jpg',
-  'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/9S9lQftX0vkGaYO3eBDEhZKZz3A7ASO4qX28iDo1.webp',
-  'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/pZB4Jdism3G9XRZxfww4wFkEggmMA8PndiOsWMHi.webp',
+  { src: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/UcuCAbqBuLvphQwpgudEKiSTjNT7tkDWqG2nmVoF.webp', alt: 'Product', w: 2500, h: 2920, priority: true },
+  { src: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/2G9Lpmj05VJfKGMUI8OFXtwK0j6KZHqkUDez5iJd.webp', alt: '', w: 2480, h: 6800, priority: false },
+  { src: 'https://cdn.youcan.shop/stores/defae844a0bbda3e5af90b6e7c10442b/others/K7xCrltppCNd4UVbJGSOqObap2IJ85nFDeub8El2.jpg', alt: '', w: 2480, h: 2081, priority: false },
+  { src: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/9S9lQftX0vkGaYO3eBDEhZKZz3A7ASO4qX28iDo1.webp', alt: '', w: 2500, h: 2711, priority: false },
+  { src: 'https://cdn.youcan.shop/stores/ba86712f261c8f3eed78e0e12a689855/others/pZB4Jdism3G9XRZxfww4wFkEggmMA8PndiOsWMHi.webp', alt: '', w: 2467, h: 5063, priority: false },
 ];
 
 export default function LandingPageV3({ config, onPurchase }: { config: any, onPurchase: (p: number, product: any, formData?: any) => void }) {
@@ -30,15 +30,6 @@ export default function LandingPageV3({ config, onPurchase }: { config: any, onP
       });
     }
   }, [product]);
-
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = HERO_IMG;
-    document.head.appendChild(link);
-    return () => { document.head.removeChild(link); };
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -61,12 +52,13 @@ export default function LandingPageV3({ config, onPurchase }: { config: any, onP
     <div className="min-h-screen bg-slate-100 pb-24 font-sans text-slate-800" dir="rtl">
       <div className="max-w-2xl mx-auto bg-white shadow-2xl min-h-screen overflow-hidden flex flex-col">
         <img
-          src={HERO_IMG}
-          alt="Product"
-          className="w-full"
+          src={IMGS[0].src}
+          alt={IMGS[0].alt}
+          width={IMGS[0].w}
+          height={IMGS[0].h}
           fetchpriority="high"
           decoding="async"
-          style={{ aspectRatio: 'auto' }}
+          className="w-full h-auto"
         />
 
         <section id="checkout" className="py-8 bg-white px-4 border-t border-slate-100">
@@ -87,8 +79,8 @@ export default function LandingPageV3({ config, onPurchase }: { config: any, onP
           </a>
         </div>
 
-        {IMGS.map((src, i) => (
-          <img key={i} src={src} alt="" loading="lazy" decoding="async" className="w-full mt-2" />
+        {IMGS.slice(1).map((img, i) => (
+          <img key={i} src={img.src} alt={img.alt} width={img.w} height={img.h} loading="lazy" decoding="async" className="w-full h-auto mt-2" />
         ))}
 
         <Suspense fallback={<div className="h-32 bg-slate-50 animate-pulse rounded-xl m-4" />}>
